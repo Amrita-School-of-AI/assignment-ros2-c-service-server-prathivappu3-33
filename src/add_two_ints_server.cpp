@@ -1,71 +1,50 @@
-#include <memory>
-#include <chrono>
-
 #include "rclcpp/rclcpp.hpp"
 #include "example_interfaces/srv/add_two_ints.hpp"
 
-using namespace std::chrono_literals;
+using std::placeholders::_1;
+using std::placeholders::_2;
 
-class AddTwoIntsClient : public rclcpp::Node
+class AddTwoIntsServer : public rclcpp::Node
 {
 public:
-  AddTwoIntsClient()
-  : Node("add_two_ints_client")
+  AddTwoIntsServer()
+  : Node("add_two_ints_server")
   {
-    client_ = this->create_client<example_interfaces::srv::AddTwoInts>("add_two_ints");
-  }
+    service_ = this->create_service<example_interfaces::srv::AddTwoInts>(
+      "add_two_ints",
+      std::bind(&AddTwoIntsServer::add, this, _1, _2)
+    );
 
-  rclcpp::Client<example_interfaces::srv::AddTwoInts>::SharedFuture
-  send_request(int64_t a, int64_t b)
-  {
-    // Wait for service with 1-second timeout
-    while (!client_->wait_for_service(1s)) {
-      if (!rclcpp::ok()) {
-        RCLCPP_ERROR(this->get_logger(), "Interrupted while waiting for the service.");
-        return nullptr;
-      }
-      RCLCPP_INFO(this->get_logger(), "Waiting for service to appear...");
-    }
-
-    RCLCPP_INFO(this->get_logger(), "Service available, sending request...");
-
-    auto request = std::make_shared<example_interfaces::srv::AddTwoInts::Request>();
-    request->a = a;
-    request->b = b;
-
-    return client_->async_send_request(request);
+    RCLCPP_INFO(this->get_logger(), "Add Two Ints Service Server is ready.");
   }
 
 private:
-  rclcpp::Client<example_interfaces::srv::AddTwoInts>::SharedPtr client_;
+  void add(
+    const std::shared_ptr<example_interfaces::srv::AddTwoInts::Request> request,
+    std::shared_ptr<example_interfaces::srv::AddTwoInts::Response> response)
+  {
+    response->sum = request->a + request->b;
+
+    RCLCPP_INFO(
+      this->get_logger(),
+      "Incoming request: a=%ld, b=%ld",
+      request->a, request->b
+    );
+
+    RCLCPP_INFO(
+      this->get_logger(),
+      "Sending response: sum=%ld",
+      response->sum
+    );
+  }
+
+  rclcpp::Service<example_interfaces::srv::AddTwoInts>::SharedPtr service_;
 };
 
 int main(int argc, char **argv)
 {
   rclcpp::init(argc, argv);
-
-  auto node = std::make_shared<AddTwoIntsClient>();
-
-  auto future = node->send_request(41, 1);
-
-  // Wait for response
-  if (rclcpp::spin_until_future_complete(node, future) ==
-      rclcpp::FutureReturnCode::SUCCESS)
-  {
-    auto response = future.get();
-    RCLCPP_INFO(
-      node->get_logger(),
-      "Result: %ld + %ld = %ld",
-      response->sum - 1,
-      1L,
-      response->sum
-    );
-  }
-  else
-  {
-    RCLCPP_ERROR(node->get_logger(), "Failed to call service add_two_ints");
-  }
-
+  rclcpp::spin(std::make_shared<AddTwoIntsServer>());
   rclcpp::shutdown();
   return 0;
 }
