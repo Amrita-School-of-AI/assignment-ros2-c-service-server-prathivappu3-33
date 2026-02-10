@@ -11,8 +11,7 @@ find_package(example_interfaces REQUIRED)
 
 add_executable(add_two_ints_server src/add_two_ints_server.cpp)
 
-ament_target_dependencies(
-  add_two_ints_server
+ament_target_dependencies(add_two_ints_server
   rclcpp
   example_interfaces
 )
